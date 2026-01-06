@@ -43,8 +43,12 @@ public class RunMatsim{
 		config.controller().setOverwriteFileSetting( OverwriteFileSetting.deleteDirectoryIfExists );
 
 		// possibly modify config here
+//        ismail - config.routing().addParam();
 
-		// ---
+        // ismail - routing
+        // ismail - travel disutilities
+
+        // ---
 		
 		Scenario scenario = ScenarioUtils.loadScenario(config) ;
 
@@ -59,8 +63,10 @@ public class RunMatsim{
 //		controler.addOverridingModule( new OTFVisLiveModule() ) ;
 
 //		controler.addOverridingModule( new SimWrapperModule() );
-		
-		// ---
+        // controler.setScoringFunctionFactory(new HeatScoringFunctionFactory(config));
+
+
+        // ---
 		
 		controler.run();
 	}
