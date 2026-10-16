@@ -24,7 +24,9 @@
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<maven.compiler.release>21</maven.compiler.release>
+
+		<!--added by gurban-->
+		<geotools.version>33.2</geotools.version>
 	</properties>
 
 	<repositories>
@@ -53,13 +55,96 @@
 		</repository>
 	</repositories>
 
+	<dependencyManagement>
+		<dependencies>
+			<!-- FORCE UNIT-API VERSION GLOBALLY -->
+			<dependency>
+				<groupId>javax.measure</groupId>
+				<artifactId>unit-api</artifactId>
+				<version>2.2</version>
+			</dependency>
+
+			<dependency>
+				<groupId>tech.units</groupId>
+				<artifactId>indriya</artifactId>
+				<version>2.2</version>
+			</dependency>
+
+			<!-- GEOTOOLS BOM -->
+			<dependency>
+				<groupId>org.geotools</groupId>
+				<artifactId>geotools</artifactId>
+				<version>${geotools.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
+		<!-- FORCE CORRECT UNIT-API VERSION (MUST BE FIRST!) -->
 		<dependency>
-			<!-- This is the matsim "core": -->
+			<groupId>javax.measure</groupId>
+			<artifactId>unit-api</artifactId>
+			<version>2.2</version>
+		</dependency>
+
+		<dependency>
+			<groupId>tech.units</groupId>
+			<artifactId>indriya</artifactId>
+			<version>2.2</version>
+		</dependency>
+
+		<!-- GeoTools dependencies for Flood Data Processing -->
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-main</artifactId>
+			<version>${geotools.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-shapefile</artifactId>
+			<version>${geotools.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-referencing</artifactId>
+			<version>${geotools.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-metadata</artifactId>
+			<version>${geotools.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-api</artifactId> <!-- Adds the new org.geotools.api packages -->
+			<version>${geotools.version}</version>
+		</dependency>
+
+		<!--		<dependency>-->
+<!--			&lt;!&ndash; This is the matsim "core": &ndash;&gt;-->
+<!--			<groupId>org.matsim</groupId>-->
+<!--			<artifactId>matsim</artifactId>-->
+<!--			<version>${matsim.version}</version>-->
+<!--		</dependency>-->
+
+		<dependency>
 			<groupId>org.matsim</groupId>
 			<artifactId>matsim</artifactId>
 			<version>${matsim.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.measure</groupId>
+					<artifactId>unit-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
+
 
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
@@ -157,6 +242,22 @@
 <!--		</dependency>-->
 
 		<!--Dependencies from where stated above to here are added as a service; they can be removed if you don't need them-->
+
+
+<!--&lt;!&ndash;		GeoTools 30+ requires JSR-363 / Units of Measurement API 2.0+,&ndash;&gt;-->
+<!--		<dependency>-->
+<!--			<groupId>javax.measure</groupId>-->
+<!--			<artifactId>unit-api</artifactId>-->
+<!--			<version>2.1.3</version>-->
+<!--		</dependency>-->
+
+<!--		<dependency>-->
+<!--			<groupId>tech.units</groupId>-->
+<!--			<artifactId>indriya</artifactId>-->
+<!--			<version>2.1.3</version>-->
+<!--		</dependency>-->
+
+
 
 	</dependencies>
 

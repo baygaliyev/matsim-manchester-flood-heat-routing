@@ -1,69 +1,111 @@
-# matsim-example-project
+# matsim-project-gurban
 
-A small example of how to use MATSim as a library.
+MATSim post-processing tools for **flood-aware** and **heat-aware** active-mobility
+routing in Manchester, developed during a research visit at the University of
+Cambridge. The project is built on top of the official
+[`matsim-example-project`](https://github.com/matsim-org/matsim-example-project)
+and uses MATSim as a library.
 
-By default, this project uses the latest (pre-)release. In order to use a different version, edit `pom.xml`.
+Given a MATSim network and a population of trips, the code computes, for walking
+and cycling:
 
-A recommended directory structure is as follows:
-* `src` for sources
-* `original-input-data` for original input data (typically not in MATSim format)
-* `scenarios` for MATSim scenarios, i.e. MATSim input and output data.  A good way is the following:
-  * One subdirectory for each scenario, e.g. `scenarios/mySpecialScenario01`.
-  * This minimally contains a config file, a network file, and a population file.
-  * Output goes one level down, e.g. `scenarios/mySpecialScenario01/output-from-a-good-run/...`.
-  
-  
-### Import into eclipse
+1. the **fastest** route between each origin and destination, and
+2. a **flood- or heat-optimal** route that trades travel time against
+   environmental exposure (surface-water flood depth, or WBGT heat stress).
 
-1. download a modern version of eclipse. This should have maven and git included by default.
-1. `file->import->git->projects from git->clone URI` and clone as specified above.  _It will go through a 
-sequence of windows; it is important that you import as 'general project'._
-1. `file->import->maven->existing maven projects`
+The tool sweeps a set of cost weights, evaluates each candidate route, and
+selects the route that minimises exposure subject to an acceptable travel-time
+penalty. Results are written as per-trip CSV files that the Python scripts in
+`src/main/python` turn into summary tables and maps.
 
-Sometimes, step 3 does not work, in particular after previously failed attempts.  Sometimes, it is possible to
-right-click to `configure->convert to maven project`.  If that fails, the best thing seems to remove all 
-pieces of the failed attempt in the directory and start over.
+## Repository layout
 
-### Import into IntelliJ
+* `src/main/java/org/matsim/manchester/` — Java routing code:
+  * `ManchesterFloodRouting.java` / `FloodAwareDisutility.java` / `FloodDataLoader.java` — flood-aware routing.
+  * `ManchesterHeatRouting.java` / `HeatAwareDisutility.java` / `HeatDataLoader.java` — heat-aware routing (WBGT).
+  * `LocalWeightOptimizer.java` — shared helper that picks the optimal cost weight per trip.
+* `src/main/python/` — analysis and plotting scripts (see its own `README.md`).
+* `scenarios/` — MATSim scenarios (input: config, network, population).
+* `requirements.txt` — Python dependencies for `src/main/python`.
+* `pom.xml` — Maven build; adds GeoTools 33.2 (shapefile loading for flood data).
 
-`File -> New -> Project from Version Control` paste the repository url and hit 'clone'. IntelliJ usually figures out
-that the project is a maven project. If not: `Right click on pom.xml -> import as maven project`.
+## Input data
 
-### Java Version
+The Java entry points read their inputs from a `BASE_PATH` directory (edit the
+constant at the top of each `*Routing.java` / `*DataLoader.java` file; the
+committed values point to the original analysis server). The expected files are:
 
-The project uses Java 11. Usually a suitable SDK is packaged within IntelliJ or Eclipse. Otherwise, one must install a 
-suitable sdk manually, which is available [here](https://openjdk.java.net/)
+| File | Used by | Description |
+| --- | --- | --- |
+| `network_base.xml` | flood, heat | MATSim network (EPSG:27700). |
+| `network_with_flood_data.xml` | flood | Network enriched with per-link flood depth. |
+| `2021.output_plans.xml.gz` | flood, heat | MATSim population (2021 plans). |
+| `wbgt_grid.meta` | heat | WBGT grid header (nx, ny, x0, y0, dx, dy, CRS `EPSG:32630`). |
+| `wbgt_scenario_{peak,commute,weekend}.bin` | heat | Compact WBGT slices produced by `preprocess_wbgt.py`. |
 
-### Building and Running it locally
-
-You can build an executable jar-file by executing the following command:
-
-```sh
-./mvnw clean package
-```
-
-or on Windows:
-
-```sh
-mvnw.cmd clean package
-```
-
-This will download all necessary dependencies (it might take a while the first time it is run) and create a file `matsim-example-project-0.0.1-SNAPSHOT.jar` in the top directory. This jar-file can either be double-clicked to start the MATSim GUI, or executed with Java on the command line:
+The WBGT binaries are generated from a NetCDF source (e.g. `WBGT_2025.nc`) with:
 
 ```sh
-java -jar matsim-example-project-0.0.1-SNAPSHOT.jar
+python src/main/python/preprocess_wbgt.py --input-file WBGT_2025.nc --output-dir input/
 ```
 
+## Building
 
+```sh
+./mvnw clean package          # Linux/macOS
+mvnw.cmd clean package        # Windows
+```
 
-### Licenses
-(The following paragraphs need to be adjusted according to the specifications of your project.)
+This downloads dependencies and produces `matsim-project-gurban-0.0.1-SNAPSHOT.jar`
+in the top directory. It can be launched to open the MATSim GUI:
 
-The **MATSim program code** in this repository is distributed under the terms of the [GNU General Public License as published by the Free Software Foundation (version 2)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html). The MATSim program code are files that reside in the `src` directory hierarchy and typically end with `*.java`.
+```sh
+java -jar matsim-project-gurban-0.0.1-SNAPSHOT.jar
+```
 
-The **MATSim input files, output files, analysis data and visualizations** are licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
-<a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> MATSim input files are those that are used as input to run MATSim. They often, but not always, have a header pointing to matsim.org. They typically reside in the `scenarios` directory hierarchy. MATSim output files, analysis data, and visualizations are files generated by MATSim runs, or by postprocessing.  They typically reside in a directory hierarchy starting with `output`.
+Requires **Java 21**. Continuous integration builds with `mvn verify` via
+`.github/workflows/maven.yml`.
 
-**Other data files**, in particular in `original-input-data`, have their own individual licenses that need to be individually clarified with the copyright holders.
+## Running the routing
 
+Each routing class has a `main` method and can be run from the command line
+(after `mvn package`, or directly from an IDE such as IntelliJ):
 
+```sh
+# Flood-aware routing
+java -cp target/classes org.matsim.manchester.ManchesterFloodRouting
+
+# Heat-aware routing; scenario is one of: peak | commute | weekend (default: commute)
+java -cp target/classes org.matsim.manchester.ManchesterHeatRouting weekend
+```
+
+Outputs are written to `results_<scenario>_<timestamp>/` (flood) and
+`results_heat_<scenario>_<timestamp>/` (heat) under `OUTPUT_DIR`, containing
+`routes_fastest_{walk,bike}.csv` and `routes_heat_{walk,bike}.csv`.
+
+## Analysis and plotting
+
+See `src/main/python/README.md`. In short, with the run output placed under a
+directory pointed to by `MATSIM_OUTPUT_DIR`:
+
+```sh
+pip install -r requirements.txt
+python src/main/python/heat_analysis_local.py        # LaTeX summary tables
+python src/main/python/plot_heatmap_with_network.py  # WBGT maps + network overlay
+```
+
+## Licenses
+
+The **MATSim program code** in this repository is distributed under the terms of
+the [GNU General Public License as published by the Free Software Foundation (version 2)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
+The MATSim program code are files that reside in the `src` directory hierarchy and
+typically end with `*.java`.
+
+The **MATSim input files, output files, analysis data and visualizations** are
+licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
+MATSim input files are those that are used as input to run MATSim. MATSim output
+files, analysis data, and visualizations are files generated by MATSim runs, or by
+postprocessing.
+
+**Other data files** have their own individual licenses that need to be
+individually clarified with the copyright holders.

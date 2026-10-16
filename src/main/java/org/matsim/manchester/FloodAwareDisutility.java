@@ -8,63 +8,51 @@ import org.matsim.vehicles.Vehicle;
 /**
  * Flood-aware travel disutility for Manchester.
  *
- * Same logic as your MDM paper ExposureAwarePedestrianDisutility,
+ * Same logic as MDM paper,
  * but adapted for flood risk instead of emissions.
  *
- * Cost = weight * time + (1-weight) * flood_risk
+ * Cost = weight * time + (1-weight) * flood_exposure
  *
  * where:
  * - weight ∈ [0,1]: trade-off parameter
  * - time: normalized travel time
- * - flood_risk: normalized flood exposure
+ * - flood_risk: normalized flood exposure (0-1)
  */
 public class FloodAwareDisutility implements TravelDisutility {
 
     private final double weight;
-    private final double speed; // m/s (walk: 1.4, bike: 4.17)
+//    private final double speed; // m/s (walk: 1.4, bike: 4.17)
 
-    public FloodAwareDisutility(double weight, double speed) {
+    public FloodAwareDisutility(double weight) {
         this.weight = weight;
-        this.speed = speed;
+//        this.speed = speed;
     }
 
     @Override
     public double getLinkTravelDisutility(Link link, double time,
                                           Person person, Vehicle vehicle) {
 
-        // Get normalized travel time
-        double travelTime = link.getLength() / speed;
+        // Get normalized travel time (0-1) from attributes
+        double travelTimeNorm = (Double) link.getAttributes().getAttribute("travel_time_norm");
 
-        // Get normalized flood risk
-        double floodRisk = getFloodRisk(link);
+        // Get normalized personal exposure (0-1)
+        Object exposureObj = link.getAttributes().getAttribute("personal_exposure_norm");
+        double exposureNorm = (exposureObj instanceof Double) ? (Double) exposureObj : 0.0;
 
         // Weighted cost: w * time + (1-w) * flood_risk
         // (Same formula as your MDM paper!)
-        return weight * travelTime + (1.0 - weight) * floodRisk;
+        return weight * travelTimeNorm + (1.0 - weight) * exposureNorm;
     }
 
     @Override
     public double getLinkMinimumTravelDisutility(Link link) {
-        // Minimum = just travel time (weight = 1.0)
-        return link.getLength() / speed;
-    }
+        // Minimum assumes zero flood risk (best case scenario)
+        // Must be admissible heuristic for A*: never overestimate actual cost
+        double travelTimeNorm = (Double) link.getAttributes().getAttribute("travel_time_norm");
+        return weight * travelTimeNorm;
+    } // not just length/speed
 
     /**
-     * Get normalized flood risk for link.
+     * Get normalized personal exposure for link.
      */
-    private double getFloodRisk(Link link) {
-        Object risk = link.getAttributes().getAttribute("flood_risk_norm");
-
-        if (risk instanceof Double) {
-            return (Double) risk;
-        }
-
-        // Fallback to non-normalized
-        Object riskRaw = link.getAttributes().getAttribute("flood_risk");
-        if (riskRaw instanceof Double) {
-            return (Double) riskRaw;
-        }
-
-        return 0.0; // No flood risk
-    }
 }

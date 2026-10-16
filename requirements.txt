@@ -1,0 +1,11 @@
+# Python dependencies for the Manchester flood/heat analysis scripts
+# (src/main/python). Install with:  pip install -r requirements.txt
+numpy
+pandas
+matplotlib
+contextily
+pyproj
+shapely
+geopandas
+netCDF4
+jupyter

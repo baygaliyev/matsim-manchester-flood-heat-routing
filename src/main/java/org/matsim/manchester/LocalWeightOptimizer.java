@@ -3,7 +3,7 @@ package org.matsim.manchester;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
-import org.matsim.core.router.Dijkstra;
+import org.matsim.core.router.DijkstraFactory;
 import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.router.util.TravelDisutility;
 import org.matsim.core.router.util.TravelTime;
@@ -60,9 +60,9 @@ public class LocalWeightOptimizer {
             if (metrics != null) {
                 // Compute % difference from fastest
                 double timeDiff = ((metrics.time - fastest.time) / fastest.time) * 100.0;
-                double riskDiff = ((metrics.risk - fastest.risk) / fastest.risk) * 100.0;
+                double depthDiff = ((metrics.depth - fastest.depth) / fastest.depth) * 100.0;
 
-                paretoFront.add(new WeightedMetrics(w, timeDiff, riskDiff));
+                paretoFront.add(new WeightedMetrics(w, timeDiff, depthDiff));
             }
         }
 
@@ -71,7 +71,7 @@ public class LocalWeightOptimizer {
     }
 
     /**
-     * Compute path metrics (time and flood risk) for given weight.
+     * Compute path metrics (time and flood depth) for given weight.
      */
     private PathMetrics computePathMetrics(Node from, Node to, double weight) {
 
@@ -79,43 +79,46 @@ public class LocalWeightOptimizer {
         double speed = mode.equals("bike") ? 4.17 : 1.4;
 
         // Create weighted disutility
-        FloodAwareDisutility disutility = new FloodAwareDisutility(weight, speed);
+        FloodAwareDisutility disutility = new FloodAwareDisutility(weight);
 
         // Dummy travel time (we use disutility only)
-        TravelTime travelTime = (link, time, person, vehicle) -> link.getLength() /
-                (mode.equals("bike") ? 4.17 : 1.4);
+        TravelTime travelTime = (link, time, person, vehicle) -> link.getLength() / speed;
 
         // Run Dijkstra
-        Dijkstra dijkstra = new Dijkstra(network, disutility, travelTime);
+//        Dijkstra dijkstra = new Dijkstra(network, disutility, travelTime);
+//        LeastCostPathCalculator.Path path = dijkstra.calcLeastCostPath(from, to, 0, null, null);
+
+        // If DijkstraFactory is a factory that returns a LeastCostPathCalculator
+        LeastCostPathCalculator dijkstra = new DijkstraFactory().createPathCalculator(network, disutility, travelTime);
         LeastCostPathCalculator.Path path = dijkstra.calcLeastCostPath(from, to, 0, null, null);
 
         if (path == null) {
             return null;
         }
 
-        // Compute actual time and flood risk
+        // Compute actual time and flood depth
         double totalTime = 0;
-        double totalRisk = 0;
+        double totalDepth = 0;
 
-        double speed = mode.equals("bike") ? 4.17 : 1.4;
-
+// 2. The Loop (The Calculation)
         for (Link link : path.links) {
-            double walkTime = link.getLength() / speed;
-            double risk = getRisk(link);
+            // Use the 'travelTime' logic defined above instead of re-calculating
+            double linkTime = travelTime.getLinkTravelTime(link, 0, null, null);
+            double depth = getDepth(link);
 
-            totalTime += walkTime;
-            totalRisk += risk;
+            totalTime += linkTime;
+            totalDepth += depth;
         }
 
-        return new PathMetrics(totalTime, totalRisk);
+        return new PathMetrics(totalTime, totalDepth);
     }
 
     /**
-     * Get flood risk for a link.
+     * Get flood depth for a link.
      */
-    private double getRisk(Link link) {
-        Object risk = link.getAttributes().getAttribute("flood_risk");
-        return (risk instanceof Double) ? (Double) risk : 0.0;
+    private double getDepth(Link link) {
+        Object depth = link.getAttributes().getAttribute("flood_depth");
+        return (depth instanceof Double) ? (Double) depth : 0.0;
     }
 
     /**
@@ -130,19 +133,19 @@ public class LocalWeightOptimizer {
         // Find ranges
         double minTime = paretoFront.stream().mapToDouble(m -> m.timeDiff).min().orElse(0);
         double maxTime = paretoFront.stream().mapToDouble(m -> m.timeDiff).max().orElse(0);
-        double minExp = paretoFront.stream().mapToDouble(m -> m.riskDiff).min().orElse(0);
-        double maxExp = paretoFront.stream().mapToDouble(m -> m.riskDiff).max().orElse(0);
+        double minDepth = paretoFront.stream().mapToDouble(m -> m.depthDiff).min().orElse(0);
+        double maxDepth = paretoFront.stream().mapToDouble(m -> m.depthDiff).max().orElse(0);
 
         // Ideal point with 10% buffer (MDM paper)
         double idealTime = maxTime + 0.1 * (maxTime - minTime);
-        double idealExp = maxExp + 0.1 * (maxExp - minExp);
+        double idealDepth = maxDepth + 0.1 * (maxDepth - minDepth);
 
         // Find max hypervolume
         double bestWeight = 1.0;
         double maxHV = -Double.MAX_VALUE;
 
         for (WeightedMetrics m : paretoFront) {
-            double hv = (idealTime - m.timeDiff) * (idealExp - m.riskDiff);
+            double hv = (idealTime - m.timeDiff) * (idealDepth - m.depthDiff);
 
             if (hv > maxHV) {
                 maxHV = hv;
@@ -153,57 +156,26 @@ public class LocalWeightOptimizer {
         return bestWeight;
     }
 
-    /**
-     * Weighted disutility for routing.
-     */
-    private static class WeightedDisutility implements TravelDisutility {
-        private final double weight;
-
-        WeightedDisutility(double weight) {
-            this.weight = weight;
-        }
-
-        @Override
-        public double getLinkTravelDisutility(Link link, double time,
-                                              org.matsim.api.core.v01.population.Person person,
-                                              org.matsim.vehicles.Vehicle vehicle) {
-            double normTime = getNorm(link, "walking_time_norm");
-            double normExp = getNorm(link, "personal_exposure_norm");
-
-            return weight * normTime + (1.0 - weight) * normExp;
-        }
-
-        @Override
-        public double getLinkMinimumTravelDisutility(Link link) {
-            return link.getLength() / 1.4;
-        }
-
-        private double getNorm(Link link, String attr) {
-            Object val = link.getAttributes().getAttribute(attr);
-            return (val instanceof Double) ? (Double) val : 0.0;
-        }
-    }
-
     // Helper classes
     private static class PathMetrics {
         final double time;
-        final double exposure;
+        final double depth;
 
-        PathMetrics(double time, double exposure) {
+        PathMetrics(double time, double depth) {
             this.time = time;
-            this.exposure = exposure;
+            this.depth = depth;
         }
     }
 
     private static class WeightedMetrics {
         final double weight;
         final double timeDiff;
-        final double expDiff;
+        final double depthDiff;
 
-        WeightedMetrics(double weight, double timeDiff, double expDiff) {
+        WeightedMetrics(double weight, double timeDiff, double depthDiff) {
             this.weight = weight;
             this.timeDiff = timeDiff;
-            this.expDiff = expDiff;
+            this.depthDiff = depthDiff;
         }
     }
 }
