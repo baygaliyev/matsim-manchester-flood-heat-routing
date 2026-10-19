@@ -1,4 +1,4 @@
-# matsim-project-gurban
+# matsim-manchester-flood-heat-routing
 
 MATSim post-processing tools for **flood-aware** and **heat-aware** active-mobility
 routing in Manchester, developed during a research visit at the University of
@@ -56,11 +56,11 @@ python src/main/python/preprocess_wbgt.py --input-file WBGT_2025.nc --output-dir
 mvnw.cmd clean package        # Windows
 ```
 
-This downloads dependencies and produces `matsim-project-gurban-0.0.1-SNAPSHOT.jar`
+This downloads dependencies and produces `matsim-example-project-0.0.1-SNAPSHOT.jar`
 in the top directory. It can be launched to open the MATSim GUI:
 
 ```sh
-java -jar matsim-project-gurban-0.0.1-SNAPSHOT.jar
+java -jar matsim-example-project-0.0.1-SNAPSHOT.jar
 ```
 
 Requires **Java 21**. Continuous integration builds with `mvn verify` via
