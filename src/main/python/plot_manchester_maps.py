@@ -37,7 +37,7 @@ def plot_wbgt_map(bin_path, meta_path, output_png, title="WBGT (°C) – Peak Sc
                    vmin=vmin, vmax=vmax, aspect="auto")
     if show_cbar:
         plt.colorbar(im, ax=ax, label="WBGT (°C)", shrink=0.8)
-    ctx.add_basemap(ax, crs="EPSG:32630", source=ctx.providers.CartoDB.Positron, alpha=0.5)
+    ctx.add_basemap(ax, crs="EPSG:32630", source=ctx.providers.Esri.WorldGrayCanvas, alpha=0.5)
     ax.set_title(title)
     ax.set_xlabel("Easting (m)")
     if show_ylabel:
@@ -64,7 +64,7 @@ def plot_flood_map(csv_path, network_path, output_png, max_depth=1.2):
     merged.plot(column="flood_depth", ax=ax, cmap="Blues", linewidth=0.3,
                 legend=True, vmin=0, vmax=max_depth,
                 legend_kwds={"label": "Flood depth (m)", "shrink": 0.8})
-    ctx.add_basemap(ax, crs="EPSG:32630", source=ctx.providers.CartoDB.Positron, alpha=0.5)
+    ctx.add_basemap(ax, crs="EPSG:32630", source=ctx.providers.Esri.WorldGrayCanvas, alpha=0.5)
     ax.set_title("Surface Water Flood Depth – RoFSW")
     ax.set_xlabel("Easting (m)"); ax.set_ylabel("Northing (m)")
     plt.tight_layout()
