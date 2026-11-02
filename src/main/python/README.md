@@ -35,7 +35,7 @@ Every script also accepts the corresponding `--input-dir` / `--output-dir` /
 | `diagnose_weekend_bike_bug.py` | Inspect trips with identical path but differing heat exposure (weekend bike case). |
 | `diagnose_bug_deep.py` | Deeper diagnosis: link-level comparison, factor analysis, ratio by travel-time bin. |
 | `plot_heatmap_with_network.py` | Render WBGT scenario heatmaps clipped to the Greater Manchester boundary, with the MATSim road network over a basemap. Emits a 1x3 overview (`heatmap_wbgt_3panel`) plus one identically-sized map per scenario (`heatmap_with_network_*`), each with a dedicated colourbar slot so panels never change size. Writes png and pdf by default. |
-| `plot_manchester_maps.py` | WBGT maps for the paper (and a stub for the flood-depth map). |
+| `plot_manchester_maps.py` | Deprecated redirect to `plot_heatmap_with_network.py`; kept so old commands keep working and never regenerate the legacy flat-blue maps. |
 
 ## Notebooks
 

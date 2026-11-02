@@ -364,6 +364,13 @@ def style_axes(panels, titles, show_titles):
         # northing labels only on the first panel, easting label on every panel
         ax.tick_params(labelsize=8, labelleft=(index == 0), labelbottom=True)
         ax.set_xlabel("Easting (m)", fontsize=9)
+    # Keep only outer tick labels on the shared grid. The panels are placed with
+    # fig.add_axes (no SubplotSpec), so label_outer() is a no-op here; the manual
+    # tick_params above is the equivalent and hides inner y labels on (b) and (c).
+    for ax in panels:
+        label_outer = getattr(ax, "label_outer", None)
+        if label_outer is not None:
+            label_outer()
     panels[0].set_ylabel("Northing (m)", fontsize=9)
     if show_titles:
         for ax, title in zip(panels, titles):
